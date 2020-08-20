@@ -10,13 +10,15 @@ import sqlite3
 
 def main():
     base_url = "https://movie.douban.com/top250?start="
-    # 1-Scrap website
-    datalist = get_data(base_url)
-    # 2-Analyze data
-    # 3-Save Data
-    save_path = '.\\doubanTop250.xls'
-    save_data(datalist, save_path)
     get_url(base_url)
+    # Scrap website
+    datalist = get_data(base_url)
+    # Save Data to excel
+    # save_path = '.\\doubanTop250.xls'
+    # save_to_excel(datalist, save_path)
+    # Save Data to db
+    db_path = 'movie.db'
+    save_to_db(datalist, db_path)
 
 
 get_movie_href = re.compile(r'<a class="" href="(.*?)">')
@@ -28,6 +30,29 @@ get_movie_intro = re.compile(r'<span class="inq">(.*)</span>')
 get_movie_info = re.compile(r'<p class="">(.*?)</p>', re.S)
 
 
+# Get website content from url
+def get_url(url):
+    head = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/84.0.4147.135 Safari/537.36"
+    }
+
+    req = urllib.request.Request(url, headers=head)
+    html = ""
+    try:
+        res = urllib.request.urlopen(req)
+        html = res.read().decode('utf-8')
+
+    except urllib.error.URLError as err:
+        if hasattr(err, "code"):
+            print(err.code)
+        if hasattr(err, "reason"):
+            print(err.reason)
+
+    return html
+
+
+# 2-Analyze data
 def get_data(base_url):
     datalist = []
     for i in range(0, 10):
@@ -65,6 +90,7 @@ def get_data(base_url):
 
             # Remove <br/>
             movie_info = re.sub('<br(\s+)?/>(\s+)?', " ", movie_info).strip()
+            movie_info = movie_info.replace('&nbsp;','')
 
             # Save info to data
             data.extend((movie_link, movie_img, chinese_title, other_title, movie_rating, movie_rating_people,
@@ -74,29 +100,8 @@ def get_data(base_url):
     return datalist
 
 
-# Get website content from url
-def get_url(url):
-    head = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                      "Chrome/84.0.4147.135 Safari/537.36"
-    }
-
-    req = urllib.request.Request(url, headers=head)
-    html = ""
-    try:
-        res = urllib.request.urlopen(req)
-        html = res.read().decode('utf-8')
-
-    except urllib.error.URLError as err:
-        if hasattr(err, "code"):
-            print(err.code)
-        if hasattr(err, "reason"):
-            print(err.reason)
-
-    return html
-
-
-def save_data(datalist, save_path):
+# Save scraped data to excel sheet
+def save_to_excel(datalist, save_path):
     workbook = xlwt.Workbook(encoding='utf-8')
     worksheet = workbook.add_sheet('DoubanTop250', cell_overwrite_ok=True)
     col = ('Movie Link', 'Image Link', 'Movie Tile - Chinese', 'Movie Title - Other Language', 'Rating', 'Rating by',
@@ -106,9 +111,54 @@ def save_data(datalist, save_path):
     for i in range(0, 250):
         data = datalist[i]
         for j in range(0, 8):
-            worksheet.write(i+1, j, data[j])
+            worksheet.write(i + 1, j, data[j])
 
     workbook.save(save_path)
+
+
+# Create table
+def init_db(db_path):
+    sql = '''
+        CREATE TABLE movie250
+        (
+        id integer primary key autoincrement,
+        movie_link text,
+        movie_img text,
+        movie_chinese_name varchar,
+        movie_name_in_other_language varchar,
+        movie_rating numeric,
+        movie_rated_by numeric,
+        movie_intro text,
+        movie_info text
+        );
+    '''
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    conn.commit()
+    conn.close()
+
+
+# Save scraped data to db
+def save_to_db(datalist, db_path):
+    init_db(db_path)
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    for data in datalist:
+        for i in range(len(data)):
+            if i == 4 or i == 5:
+                continue
+            data[i] = '"' + data[i].strip() + '"'
+        sql = '''
+            INSERT INTO movie250(
+            movie_link,movie_img,movie_chinese_name,movie_name_in_other_language,movie_rating,movie_rated_by,
+            movie_intro,movie_info) VALUES(%s)''' % ",".join(data)
+
+        cursor.execute(sql)
+        conn.commit()
+    cursor.close()
+    conn.close()
 
 
 if __name__ == "__main__":
