@@ -11,11 +11,14 @@ import sqlite3
 def main():
     base_url = "https://movie.douban.com/top250?start="
     get_url(base_url)
+
     # Scrap website
     datalist = get_data(base_url)
+
     # Save Data to excel
     # save_path = '.\\doubanTop250.xls'
     # save_to_excel(datalist, save_path)
+
     # Save Data to db
     db_path = 'movie.db'
     save_to_db(datalist, db_path)
