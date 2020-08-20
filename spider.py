@@ -2,7 +2,8 @@
 
 from bs4 import BeautifulSoup
 import re
-import urllib.request, urllib.error
+import urllib.request
+import urllib.error
 import xlwt
 import sqlite3
 
@@ -13,8 +14,8 @@ def main():
     datalist = get_data(base_url)
     # 2-Analyze data
     # 3-Save Data
-    # savepath = '.\\doubanTop250.xls'
-    # save_data(savepath)
+    save_path = '.\\doubanTop250.xls'
+    save_data(datalist, save_path)
     get_url(base_url)
 
 
@@ -24,7 +25,7 @@ get_movie_name = re.compile(r'<span class="title">(.*)</span>')
 get_movie_rating = re.compile(r'<span class="rating_num" property="v:average">(.*)</span>')
 get_movie_rating_people = re.compile(r'<span>(\d*)人评价</span>')
 get_movie_intro = re.compile(r'<span class="inq">(.*)</span>')
-get_movie_info = re.compile(r'<p class="">(.*?)</p>',re.S)
+get_movie_info = re.compile(r'<p class="">(.*?)</p>', re.S)
 
 
 def get_data(base_url):
@@ -70,7 +71,6 @@ def get_data(base_url):
                          movie_intro, movie_info))
 
             datalist.append(data)
-    print(datalist)
     return datalist
 
 
@@ -96,8 +96,19 @@ def get_url(url):
     return html
 
 
-def save_data(savepath):
-    return "111"
+def save_data(datalist, save_path):
+    workbook = xlwt.Workbook(encoding='utf-8')
+    worksheet = workbook.add_sheet('DoubanTop250', cell_overwrite_ok=True)
+    col = ('Movie Link', 'Image Link', 'Movie Tile - Chinese', 'Movie Title - Other Language', 'Rating', 'Rating by',
+           'Introduction', 'Movie Information')
+    for i in range(0, 8):
+        worksheet.write(0, i, col[i])
+    for i in range(0, 250):
+        data = datalist[i]
+        for j in range(0, 8):
+            worksheet.write(i+1, j, data[j])
+
+    workbook.save(save_path)
 
 
 if __name__ == "__main__":
